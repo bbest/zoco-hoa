@@ -57,6 +57,16 @@ tbl_costs <- datatable(
     buttons = c('copy', 'csv', 'excel', 'pdf', 'print'))) %>% 
   formatCurrency("cost", digits = 0)
 
+tbl_costs <- datatable(
+  d_costs, 
+  extensions = c('Buttons','RowGroup'), 
+  options = list(
+    dom        = 'Bfrtip',
+    buttons    = c('copy', 'csv', 'excel', 'pdf', 'print'),
+    rowGroup   = list(dataSrc = 1)),
+  selection = 'none') %>% 
+  formatCurrency("cost", digits = 0)
+
 # project costs ----
 d_costs_prj <- mutate(d_costs, yr = yr_now + yrs_rmng)
 
