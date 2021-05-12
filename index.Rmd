@@ -33,6 +33,7 @@ yr_future       <- yr_now + 30
 reserve_now     <- 18210 # April Financials (as of 2021-04-30)
 reserve_annu    <- 29860
 reserve_eq_annu <- reserve_annu + eq_annu
+reserve_eq_mo   <- (reserve_annu + eq_annu)/12/17
 reserve_em_annu <- reserve_annu
 sa              <- 170000 # $10,000 * 17
 
@@ -48,7 +49,12 @@ d_costs <- read_csv(csv, col_types = cols()) %>%
     cost = as.numeric(gsub('[$,]', '', cost))) %>% 
   arrange(category, item) # View(d_costs)
 
-tbl_costs <- datatable(d_costs) %>% 
+tbl_costs <- datatable(
+  d_costs, 
+  extensions = 'Buttons', 
+  options = list(
+    dom = 'Bfrtip',
+    buttons = c('copy', 'csv', 'excel', 'pdf', 'print'))) %>% 
   formatCurrency("cost", digits = 0)
 
 # project costs ----
@@ -69,7 +75,11 @@ d_costs_prj <- arrange(d_costs_prj, category, item, yr)
 
 tbl_costs_prj <- d_costs_prj %>% 
   select(item, cost, yr) %>% 
-  datatable() %>% 
+  datatable( 
+    extensions = 'Buttons', 
+    options = list(
+      dom = 'Bfrtip',
+      buttons = c('copy', 'csv', 'excel', 'pdf', 'print'))) %>% 
   formatCurrency("cost", digits = 0)
 
 # annualize income ----
@@ -125,7 +135,12 @@ d_yr <- d_income_yr %>%
     reserve_em, reserve_em_sa,
     costs = cost_cum, cost_items = items) # View(d_yr)
 
-tbl_cum <- datatable(d_yr) %>% 
+tbl_cum <- datatable(
+  d_yr, 
+  extensions = 'Buttons', 
+  options = list(
+    dom = 'Bfrtip',
+    buttons = c('copy', 'csv', 'excel', 'pdf', 'print'))) %>% 
   formatCurrency(
     c("reserve", "reserve_sa", 
       "reserve_eq", "reserve_eq_sa", 
