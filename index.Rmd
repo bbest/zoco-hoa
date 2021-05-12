@@ -1,0 +1,201 @@
+---
+title: "El Zoco Repair Schedule"
+author: "Ben Best"
+date: "5/11/2021"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, message = F, warning = F)
+```
+
+## Costs vs Income
+
+```{r}
+# libraries ----
+if (!require(librarian)){
+  install.packages("librarian")
+  library(librarian)
+}
+shelf(
+  dplyr, DT, glue, plotly, readr, scales, tidyr,
+  quiet = T)
+
+# variables ----
+csv             <- "https://docs.google.com/spreadsheets/d/e/2PACX-1vS2RzB_2ClsYWpoZWJSM73JDWkY81iRwBt36mchGEIJClSIm55FiRpEoAHcU9NJNdx7Amf_cQcISZs5/pub?gid=1668966731&single=true&output=csv"
+hoa_mo          <- 382
+eq_annu         <- 20066
+eq_mo           <- eq_annu/12/17
+yr_now          <- 2021
+yr_future       <- yr_now + 30
+reserve_now     <- 18210 # April Financials (as of 2021-04-30)
+reserve_annu    <- 29860
+reserve_eq_annu <- reserve_annu + eq_annu
+reserve_em_annu <- reserve_annu
+sa              <- 170000 # $10,000 * 17
+
+# helper functions ----
+dlr <- function(x){
+  dollar_format()(x)
+}
+
+# get costs ----
+d_costs <- read_csv(csv, col_types = cols()) %>% 
+  select(category, item, cost, yrs_life, yrs_rmng) %>% 
+  mutate(
+    cost = as.numeric(gsub('[$,]', '', cost))) %>% 
+  arrange(category, item) # View(d_costs)
+
+tbl_costs <- datatable(d_costs) %>% 
+  formatCurrency("cost", digits = 0)
+
+# project costs ----
+d_costs_prj <- mutate(d_costs, yr = yr_now + yrs_rmng)
+
+for (i in d_costs_prj$item){ # i = d_costs_prj$item[1]
+  
+  row <- filter(d_costs_prj, item == i) %>% slice_max(yr)
+  
+  while(row$yr < yr_future){
+    row_next    <- mutate(row, yr = yr + yrs_life)
+    d_costs_prj <- bind_rows(d_costs_prj, row_next)
+    row         <- filter(d_costs_prj, item == i) %>% slice_max(yr)
+  }
+}
+
+d_costs_prj <- arrange(d_costs_prj, category, item, yr)
+
+tbl_costs_prj <- d_costs_prj %>% 
+  select(item, cost, yr) %>% 
+  datatable() %>% 
+  formatCurrency("cost", digits = 0)
+
+# annualize income ----
+d_income_yr <- tibble(
+  yr                = yr_now,
+  reserve_add       = reserve_now,
+  reserve_sa_add    = reserve_now + sa,
+  reserve_eq_add    = reserve_now,
+  reserve_eq_sa_add = reserve_now + sa,
+  reserve_em_add    = reserve_now,
+  reserve_em_sa_add = reserve_now + sa) %>% 
+  bind_rows(
+    tibble(
+      yr                = (yr_now + 1):yr_future,
+      reserve_add       = reserve_annu,
+      reserve_sa_add    = reserve_add,
+      reserve_eq_add    = reserve_eq_annu,
+      reserve_eq_sa_add = reserve_eq_annu,
+      reserve_em_add    = reserve_em_annu,
+      reserve_em_sa_add = reserve_em_annu)) %>% 
+  mutate(
+    reserve       = cumsum(reserve_add),
+    reserve_sa    = cumsum(reserve_sa_add),
+    reserve_eq    = cumsum(reserve_eq_add),
+    reserve_eq_sa = cumsum(reserve_eq_sa_add),
+    reserve_em    = cumsum(reserve_em_add),
+    reserve_em_sa = cumsum(reserve_em_sa_add)) # d_income_yr
+
+# annualize costs ----
+d_costs_yr <- d_costs_prj %>% 
+  mutate(
+    item_cost = glue("{item}: {dollar_format()(cost)}")) %>% 
+  arrange(yr, item) %>% 
+  group_by(yr) %>% 
+  summarize(
+    items = paste(item_cost, collapse = "\n· "),
+    cost  = sum(cost)) %>% 
+  mutate(
+    items = glue("· {items}"),
+    cost_cum = cumsum(cost)) %>% 
+  filter(
+    yr <= yr_future)
+
+# combine annualized income & costs ----
+d_yr <- d_income_yr %>% 
+  full_join(
+    d_costs_yr, by = "yr") %>% 
+  fill(cost_cum) %>% 
+  select(
+    yr, 
+    reserve, reserve_sa, 
+    reserve_eq, reserve_eq_sa,
+    reserve_em, reserve_em_sa,
+    costs = cost_cum, cost_items = items) # View(d_yr)
+
+tbl_cum <- datatable(d_yr) %>% 
+  formatCurrency(
+    c("reserve", "reserve_sa", 
+      "reserve_eq", "reserve_eq_sa", 
+      "reserve_em", "reserve_em_sa", 
+      "costs"), digits = 0)
+
+# plot cumulative income & costs ----
+plt_cum <- plot_ly(
+  d_yr, 
+  x    = ~yr,
+  y    = ~costs,
+  text = ~cost_items,
+  name = "Costs",
+  type = "scatter", mode = c("lines+markers")) %>% 
+  layout(
+    xaxis = list(title = "Year"),
+    yaxis = list(title = "Cumulative Amount ($)")) %>% 
+  add_trace(
+    y    = ~reserve, text = NA,
+    name = 'Reserve', mode = 'lines') %>% 
+  add_trace(
+    y    = ~reserve_sa, text = NA,
+    name = 'Reserve + SA', mode = 'lines') %>% 
+  add_trace(
+    y    = ~reserve_eq, text = NA,
+    name = 'Reserve ∆ EQ', mode = 'lines') %>% 
+  add_trace(
+    y    = ~reserve_eq_sa, text = NA,
+    name = 'Reserve ∆ EQ + SA', mode = 'lines')
+
+plt_cum
+```
+
+- **Reserve**: 
+  - HOA fee: 
+    - w/ EQ: **`r dlr(hoa_mo)`** /mo/unit avg
+    - w/out EQ: **`r dlr(round(hoa_mo - eq_mo))`** /mo/unit avg
+  - Earthquake (EQ) Insurance: $98 /mo/unit of HOA fee
+- **Reserve + SA**:
+  - \+ Special Assessment (SA): **`r dlr(sa/17)`** /unit
+- **Reserve ∆ EQ**:
+  - HOA fee: **`r dlr(hoa_mo)`** /mo/unit avg
+  - Earthquake (EQ) Insurance redirected to Reserve Funding: $98 /mo/unit of HOA fee
+- **Reserve ∆ EQ + SA **:
+  - \+ Special Assessment (SA): **`r dlr(sa/17)`** /unit
+
+## Source: Reserve Study 2021
+
+- [El Zoco HOA -Reserve Study Report 2021.pdf](https://drive.google.com/open?id=1TTydRfe_AEDyspSb-BVH3VeIw6uwPRGY&authuser=ben%40ecoquants.com&usp=drive_fs)
+  * [2021-03 El Zoco Repairs](https://docs.google.com/spreadsheets/d/1k8ZZTFMs8fZwnZib2mRNJeMDlXgvfbu5XoBGBAvpFjY/edit#gid=1668966731) - Google Sheet; `reserve-study` sheet
+
+## Tables
+
+### Costs
+
+```{r}
+tbl_costs
+```
+
+### Costs Projected
+
+```{r}
+tbl_costs_prj
+```
+
+### Annualized Costs & Reserve
+
+```{r}
+tbl_cum
+```
+
+
+
