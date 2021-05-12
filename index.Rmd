@@ -1,5 +1,5 @@
 ---
-title: "El Zoco Repair Schedule"
+title: "El Zoco Reserve & Cost Projections"
 author: "Ben Best"
 date: "5/11/2021"
 output: html_document
@@ -11,7 +11,7 @@ editor_options:
 knitr::opts_chunk$set(echo = F, message = F, warning = F)
 ```
 
-## Costs vs Income
+## Costs vs Reserve Funding, Cumulatively
 
 ```{r}
 # libraries ----
