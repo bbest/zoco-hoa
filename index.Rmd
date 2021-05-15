@@ -1,6 +1,6 @@
 ---
-title: "El Zoco Reserve & Cost Projections"
-author: "Ben Best"
+title: "El Zoco HOA Reserve & Cost Projections"
+author: "Ben Best, El Zoco Treasurer"
 date: "5/11/2021"
 output: html_document
 editor_options: 
@@ -11,7 +11,17 @@ editor_options:
 knitr::opts_chunk$set(echo = F, message = F, warning = F)
 ```
 
+## Goal: Assure Long-Term Solvency of El Zoco HOA
+
+In order to repair water damage from **Unit 5** at El Zoco (211 W. Gutierrez St, Santa Barbara CA) and allow the owners to return after a year out, the El Zoco HOA will need to determine a **Special Assessment** to charge each tenant.
+
+We are incredibly grateful to the [Housing Authority of the City of Santa Barbara](https://hacsb.org) (HACSB) for coordinating inspection, contractors and funding instruments, particularly with the [City of Santa Barbara Community Development](https://www.santabarbaraca.gov/gov/depts/cd/default.asp) and the [Housing Trust Fund of Santa Barbara County](https://www.sbhousingtrust.org).
+
+We need to assure ourselves and financial partners that the HOA will be able to afford future costs. This analyses takes the costs outlined in the [El Zoco HOA - Reserve Study Report 2021.pdf](https://drive.google.com/file/d/1TTydRfe_AEDyspSb-BVH3VeIw6uwPRGY/view?usp=sharing) as well as an additional $110,000 up front expense to fix Unit 5 in helping to determine reasonable HOA fees and **Special Assessment** amount to be made affordable to individual homeowners with the financial assistance of the City of SB to provide low-interest long-term loans to low income homeowners.
+
 ## Costs vs Reserve Funding, Cumulatively
+
+### Plot
 
 ```{r}
 # libraries ----
@@ -143,47 +153,55 @@ d_yr <- d_income_yr %>%
     reserve, reserve_sa, 
     reserve_eq, reserve_eq_sa,
     reserve_em, reserve_em_sa,
-    costs = cost_cum, cost_items = items) # View(d_yr)
+    cost_yr = cost, cost_cum, items) # View(d_yr)
 
 tbl_cum <- datatable(
-  d_yr, 
+  d_yr %>% 
+    select(
+      yr, cost_yr, cost_cum, items), 
   extensions = 'Buttons', 
   options = list(
     dom = 'Bfrtip',
     buttons = c('copy', 'csv', 'excel', 'pdf', 'print'))) %>% 
   formatCurrency(
-    c("reserve", "reserve_sa", 
-      "reserve_eq", "reserve_eq_sa", 
-      "reserve_em", "reserve_em_sa", 
-      "costs"), digits = 0)
+    c("cost_yr", "cost_cum"), digits = 0)
 
 # plot cumulative income & costs ----
-plt_cum <- plot_ly(
+plot_ly(
   d_yr, 
   x    = ~yr,
-  y    = ~costs,
-  text = ~cost_items,
+  y    = ~cost_cum,
+  text = ~items,
+  line = list(width = 4),
   name = "Costs",
   type = "scatter", mode = c("lines+markers")) %>% 
   layout(
     xaxis = list(title = "Year"),
     yaxis = list(title = "Cumulative Amount ($)")) %>% 
   add_trace(
-    y    = ~reserve, text = NA,
+    y    = ~reserve, text = NA, 
+    line = list(width = 2),
     name = 'Reserve', mode = 'lines') %>% 
   add_trace(
-    y    = ~reserve_sa, text = NA,
+    y    = ~reserve_sa, text = NA, 
+    line = list(width = 4),
     name = 'Reserve + SA', mode = 'lines') %>% 
   add_trace(
     y    = ~reserve_eq, text = NA,
+    line = list(width = 2),
     name = 'Reserve ∆ EQ', mode = 'lines') %>% 
   add_trace(
     y    = ~reserve_eq_sa, text = NA,
-    name = 'Reserve ∆ EQ + SA', mode = 'lines')
-
-plt_cum
+    line = list(width = 2),
+    name = 'Reserve ∆ EQ + SA', mode = 'lines') %>% 
+  layout(
+    legend = list(x = 0.1, y = 0.9))
 ```
 
+The legend labeling the lines corresponds to:
+
+- **Costs**
+  These are the costs the HOA needs to cover as outlined in our [El Zoco HOA - Reserve Study Report 2021.pdf](https://drive.google.com/file/d/1TTydRfe_AEDyspSb-BVH3VeIw6uwPRGY/view?usp=sharing) as well as an additional **+ $110,000** to cover the immediate costs to repair Unit 5.
 - **Reserve**: 
   - HOA fee: 
     - w/ EQ: **`r dlr(hoa_mo)`** /mo/unit avg
@@ -197,26 +215,47 @@ plt_cum
 - **Reserve ∆ EQ + SA **:
   - \+ Special Assessment (SA): **`r dlr(sa/17)`** /unit
 
-## Source: Reserve Study 2021
+**Note** that you can hover over the blue line of Costs to see what costs contribute to the cumulative rise for that year. You can also use the zoom tool (magnifying glass) to draw a box in which to zoom (click a corner, hold and release to opposite corner; 2x-click to return to full view).
 
-- [El Zoco HOA -Reserve Study Report 2021.pdf](https://drive.google.com/open?id=1TTydRfe_AEDyspSb-BVH3VeIw6uwPRGY&authuser=ben%40ecoquants.com&usp=drive_fs)
-  * [2021-03 El Zoco Repairs](https://docs.google.com/spreadsheets/d/1k8ZZTFMs8fZwnZib2mRNJeMDlXgvfbu5XoBGBAvpFjY/edit#gid=1668966731) - Google Sheet; `reserve-study` sheet
+To understand the Reserve funding scenarios, we basically need to have the line always above the blue Costs line, otherwise we'll have insufficient funds. This necessitates a Special Assessment (SA) to start. Rounding up to $10,000 for each unit provides a comfortable start of $170,000 as Skip suggested. Without the Special Assessment (red & orange lines) we're already negative and can't afford to pay for Rob's #5 repairs. For owners who qualify for a City loan (income of 1 person < $94,575; income of 2 people < $108,150; 90 year Affordability Covenant required) per terms in [Potential Financing Structure - El Zoco.docx](https://drive.google.com/file/d/1Entq9gDqgN1H0Qz0mgM_N_Z_EISYGz3A/view?usp=sharing), this $10,000 loan at 3% APR for 30 years equates to $42/month.
+
+The next question is what to do with the **Earthquake Insurance (EQ)** money, which is currently costing us $98/month each of our monthly HOA fee. We could:
+
+* Keep the Earthquake Insurance
+
+  - HOA fee avg: $382/month
+
+  - Reserve funding: $146/month
+
+* Drop the Earthquake Insurance
+
+  - HOA fee avg: $284/month
+
+  - Reserve funding: $146/month
+
+* Drop the Earthquake Insurance and fold that portion of the HOA fee into the Reserve funds (∆ EQ)
+
+  - HOA fee avg: $382/month
+
+  - Reserve funding: $245/month
+
+The scenarios folding the Earthquake Insurance into the Reserve funds (∆ EQ; purple and red lines) accumulate Reserve funds at an unnecessarily high rate compared to the Costs accumulated. The best scenario that keeps up with Costs with a comfortable buffer is the Reserve + SA (green line). I would advocate the option of dropping the Earthquake Insurance, so then the final monthly tally with the Special Assessment loan is $284 HOA fee + $42 City loan = $326 / month, which is $56 cheaper than our current monthly HOA fee! 
+
+Owners can still have the option to purchase Earthquake Insurance individually through the California Earthquake Authority (choose Condo Unit Owner from their [Earthquake Insurance Cost Calculator](https://www.earthquakeauthority.com/California-Earthquake-Insurance-Policies/Earthquake-Insurance-Premium-Calculator)).
 
 ## Tables
 
-### Costs
+### Item costs with lifetimes
+
+Here is the table of maintenance costs per item, lifetime of that item (`yrs_life`) and years remaining (`yrs_rmng`) gleaned from [El Zoco HOA - Reserve Study Report 2021.pdf](https://drive.google.com/file/d/1TTydRfe_AEDyspSb-BVH3VeIw6uwPRGY/view?usp=sharing).
 
 ```{r}
 tbl_costs
 ```
 
-### Costs Projected
+### Projecting Annualized Costs
 
-```{r}
-tbl_costs_prj
-```
-
-### Annualized Costs & Reserve
+Repeating these item costs over each lifetime (`yrs_life`) starting with years remaining (`yrs_rmng`), we can lump these into each year to assess the costs per year (`cost_yr`) and cumulatively (`cost_cum`) out into the next 30 years. This is what is visualized as the blue line in the Plot with each year's point showing the details on hover. This also provides us with an annual maintenance schedule.
 
 ```{r}
 tbl_cum
